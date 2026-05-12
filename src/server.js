@@ -11,16 +11,21 @@ app.set('views', path.join(__dirname, '..', 'views'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use('/', router);
 
 async function start() {
   await initDb();
-  app.use('/', router);
-  app.listen(PORT, () => {
-    console.log(`[cuteurl] Server running at http://localhost:${PORT}`);
+}
+
+if (require.main === module) {
+  start().then(() => {
+    app.listen(PORT, () => {
+      console.log(`[cuteurl] Server running at http://localhost:${PORT}`);
+    });
+  }).catch(err => {
+    console.error('Failed to start:', err);
+    process.exit(1);
   });
 }
 
-start().catch(err => {
-  console.error('Failed to start:', err);
-  process.exit(1);
-});
+module.exports = { app };

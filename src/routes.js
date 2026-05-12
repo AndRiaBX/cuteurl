@@ -31,7 +31,6 @@ function queryAll(db, sql, params = []) {
   const results = [];
   while (stmt.step()) results.push(stmt.getAsObject());
   stmt.free();
-  stmt.rest();
   return results;
 }
 
@@ -144,6 +143,28 @@ router.get('/:slug', (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).render('error', { message: 'Redirect failed.' });
+  }
+});
+
+// API: stats for a slug
+router.get('/api/stats/:slug', (req, res) => {
+  try {
+    const db = getDb();
+    const results = queryAll(db, 'SELECT * FROM links WHERE slug = ?', [req.params.slug]);
+    if (!results.length) {
+      return res.status(404).json({ error: 'Link not found.' });
+    }
+    const link = results[0];
+    res.json({
+      id: link.id,
+      slug: link.slug,
+      original: link.original,
+      clicks: link.clicks,
+      created_at: link.created_at
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error.' });
   }
 });
 
