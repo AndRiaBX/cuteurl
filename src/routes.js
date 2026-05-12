@@ -31,7 +31,6 @@ function queryAll(db, sql, params = []) {
   const results = [];
   while (stmt.step()) results.push(stmt.getAsObject());
   stmt.free();
-  stmt.rest();
   return results;
 }
 
