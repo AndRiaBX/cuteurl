@@ -1,0 +1,16 @@
+{
+  "name": "cuteurl",
+  "version": "1.0.0",
+  "description": "Simple URL shortener with SQLite storage and web UI",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "nanoid": "^3.3.8"
+  }
+}
