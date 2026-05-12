@@ -6,7 +6,12 @@ const router = express.Router();
 
 const SLUG_LENGTH = 8;
 const MAX_URL_LENGTH = 4096;
+const MAX_SLUG_RETRIES = 10;
 
+/**
+ * Validate that a string is a valid http/https URL.
+ * Rejects FTP, file://, javascript:, etc.
+ */
 function isValidUrl(str) {
   try {
     const url = new URL(str);
@@ -16,15 +21,34 @@ function isValidUrl(str) {
   }
 }
 
-// Helper: format db rows to link objects
+/**
+ * Generate a unique slug with collision retry.
+ * Throws if unable to generate after MAX_SLUG_RETRIES attempts.
+ */
+function generateUniqueSlug(db) {
+  for (let attempt = 0; attempt < MAX_SLUG_RETRIES; attempt++) {
+    const slug = nanoid(SLUG_LENGTH);
+    const existing = queryAll(db, 'SELECT id FROM links WHERE slug = ?', [slug]);
+    if (!existing.length) return slug;
+  }
+  throw new Error('Unable to generate unique slug after maximum retries');
+}
+
+/**
+ * Format sql.js exec() result rows into plain link objects.
+ * Handles empty result sets gracefully.
+ */
 function formatLinks(rows) {
-  if (!rows.length || !rows[0].values.length) return [];
+  if (!rows || !rows.length || !rows[0] || !rows[0].values || !rows[0].values.length) return [];
   return rows[0].values.map(v => ({
     id: v[0], slug: v[1], original: v[2], clicks: v[3], created_at: v[4]
   }));
 }
 
-// Helper: parameterized query returning rows as objects
+/**
+ * Execute a parameterized SELECT query and return rows as objects.
+ * Used instead of db.exec() for parameterized safety.
+ */
 function queryAll(db, sql, params = []) {
   const stmt = db.prepare(sql);
   if (params.length) stmt.bind(params);
@@ -66,13 +90,7 @@ router.post('/', (req, res) => {
       return res.render('index', { links: formatLinks(rows), error: `URL too long (max ${MAX_URL_LENGTH} characters).`, slug: null });
     }
 
-    // Generate unique slug (parameterized query — no SQL injection)
-    let slug;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      slug = nanoid(SLUG_LENGTH);
-      const existing = queryAll(db, 'SELECT id FROM links WHERE slug = ?', [slug]);
-      if (!existing.length) break;
-    }
+    const slug = generateUniqueSlug(db);
 
     db.run('INSERT INTO links (slug, original) VALUES (?, ?)', [slug, original]);
     saveDb();
@@ -100,13 +118,7 @@ router.post('/api/shorten', (req, res) => {
     }
 
     const db = getDb();
-    // Generate unique slug (parameterized — no SQL injection)
-    let slug;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      slug = nanoid(SLUG_LENGTH);
-      const existing = queryAll(db, 'SELECT id FROM links WHERE slug = ?', [slug]);
-      if (!existing.length) break;
-    }
+    const slug = generateUniqueSlug(db);
 
     db.run('INSERT INTO links (slug, original) VALUES (?, ?)', [slug, original]);
     saveDb();
